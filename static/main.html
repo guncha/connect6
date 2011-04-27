@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Connect6</title>
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
+<script type="text/javascript" src="static/jquery.json-2.2.js"></script>
+<script type="text/javascript" src="static/game+web.js"></script> 
+<link type="text/css" href="static/style.css" rel="stylesheet"></link>
+
+<style type="text/css">
+a:hover {
+	border-bottom: 3px solid black;
+	padding-bottom: 1px;
+}
+body {
+	padding: 0;
+	margin: 0;
+	border: 0;	
+}
+#page {
+	width: 930px;
+	border: 10px solid black;
+	border-radius: 24px;
+	-moz-border-radius: 20px;
+	
+	margin: 25px auto 25px auto;
+	padding-top: 35px;
+	padding-bottom: 35px;
+	
+	font-family: Helvetica Neue, helvetica, arial, sans-serif;
+	letter-spacing: 0.10em;
+	text-transform:uppercase;
+	font-weight: bold;
+	color: #2b2b2b;
+	text-align: right;
+}
+#links {
+	font-size: 2.5em;
+	margin-top: 1em;
+}
+#rules, #info {
+	margin-top: 1em;
+	text-align: left;
+	margin-left: 165px;
+	padding: 20px;
+	text-transform: none;
+	display: none;
+}
+#status {
+	font-size: 2em;
+	margin-top: 1em;
+	width: 630px;
+	margin-left: auto;
+	margin-right: auto;
+	text-align: center;	
+}
+#container {
+	background: white url('static/board.png') no-repeat;
+	height: 670px;
+	width: 670px;
+	margin-left: auto;
+	margin-right: auto;
+	position: relative;	
+
+}
+#chooser {
+	position: absolute;
+	top: 100px;
+	left: 150px;
+	width: 300px;
+	text-align: center;
+	font-size: 2em;
+}
+#chooser li {
+	display: block;
+	border: 1px solid black;
+	margin: 20px;
+	padding: 10px;
+	background: white;
+	opacity: 0.6;
+}
+#connect6 {
+	float: left;
+	border: 1px solid black;
+	margin-top: 25px;
+	margin-left: 25px;
+}
+</style>
+</head>
+<body>
+	<div id="page">
+		<div style="margin-right: 171px">
+			<div style="font-size: 3.5em">
+				<span>Hello,</span><br/>
+				would you care<br/>
+				for a game of<br/>
+				Connect 6?
+			</div>
+			<div id="links">
+				<a>rules</a> || <a>info</a>.
+			</div>
+			<div id="rules">
+				<p style="font-size: 150%">Rules</p>
+				<p>This is a version of classic Five in a Row game. Black starts by placing one stone. White continues with two. Then black.. and so on until one player has made a line in any direction consisting of six (or more) stones. Simple.</p>
+			</div>
+			<div id="info">
+				<p style="font-size: 150%">Info</p>
+				<p>You can snatch the source from <a href="/static/connect6-020311.zip">here</a>. There is so much stuff I still need to do here, but for now, consider this a proof of concept. And have fun!</p>
+			</div>
+		</div>
+		<div id="status">
+			Why, i would like to:
+		</div>
+		<div id="container">
+			<div id="chooser">
+				<ul>
+					<li>FRIEND</li>
+					<li>PLAY</li>
+					<li>RESET</li>
+				</ul>
+			</div>
+			<canvas id="connect6" width="600" height="600">Ooops.. Your browser does not seem to support the canvas tag. Try <a href="http://www.google.com/chrome">Chrome</a>.</canvas>
+		</div>
+	</div>
+</body>
+</html>

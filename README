@@ -1,0 +1,7 @@
+To compile with a working Golang environment and run:
+
+6g main.go && 6l main.6 && ./6.out
+
+Server will start on :8080. That's it!
+
+Guntars
