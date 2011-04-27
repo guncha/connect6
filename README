@@ -1,6 +1,7 @@
-To compile with a working Golang environment and run:
+To compile with a working Golang environment, run:
 
-6g main.go && 6l main.6 && ./6.out
+goinstall  github.com/petar/GoLLRB/llrb # if you don't have this already
+6g main.go && 6l main.6 && ./6.out # replace all 6 with 8 for 32 bit sys
 
 Server will start on :8080. That's it!
 
