@@ -1,25 +1,23 @@
 package main
 
 import (
-	"http"
-	//	"io"
 	"log"
+	"net/http"
 	//	"fmt"
-	//	"regexp"
-	"os"
-	"strconv"
-	"json"
-	"time"
-	"strings"
-	"rand"
+	"encoding/json"
 	"flag"
 	"github.com/petar/GoLLRB/llrb"
+	"math/rand"
+	"os"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // proposed data structures
 type coords struct {
-	X	int
-	Y	int
+	X int
+	Y int
 }
 
 func (a *coords) isEqual(b *coords) bool {
@@ -28,23 +26,27 @@ func (a *coords) isEqual(b *coords) bool {
 }
 
 type game struct {
-	id		int
-	ended		bool
-	movesDone	int
-	lastActivity	int64
-	playerBlack	string
-	playerWhite	string
+	id           int
+	ended        bool
+	movesDone    int
+	lastActivity int64
+	playerBlack  string
+	playerWhite  string
 
 	// white player is listening on blackChan
-	blackChan	chan move
-	whiteChan	chan move
+	blackChan chan move
+	whiteChan chan move
 
-	moves	[]coords
+	moves []coords
+}
+
+func (a *game) Less(b llrb.Item) bool {
+	return a.id < (b.(*game)).id
 }
 
 func newGame() (o *game) {
 	o = &game{}
-	o.blackChan = make(chan move, 2)	// these have to be buffered
+	o.blackChan = make(chan move, 2) // these have to be buffered
 	o.whiteChan = make(chan move, 2)
 	return
 }
@@ -110,30 +112,25 @@ func (g *game) isValidMove(m move) (bool, string) {
 	return true, "OK"
 }
 
-// needed for binary tree search
-func gameLess(a, b interface{}) bool {
-	return (a.(game)).id < (b.(game)).id
-}
-
 type move struct {
-	Gameid	int
-	Movenum	int
-	Player	string
-	Coords	coords
+	Gameid  int
+	Movenum int
+	Player  string
+	Coords  coords
 }
 type jsonReturn struct {
-	Error	bool
-	Timeout	int	// 0 for fatal, t>0 in ms
-	Message	string
+	Error   bool
+	Timeout int // 0 for fatal, t>0 in ms
+	Message string
 }
 type message struct {
-	request		string
-	reply_chan	chan message
-	data		interface{}
+	request    string
+	reply_chan chan message
+	data       interface{}
 }
 type webHandler struct {
-	moveChan	chan message
-	dbChan		chan message
+	moveChan chan message
+	dbChan   chan message
 }
 
 func (wh *webHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -145,7 +142,6 @@ func (wh *webHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// GET /game/friend?name=b - sets up new game
 	// GET /game/join?name=a&game=1234 - adds player to game
 	// GET /game/1234 - redirects to /#1234 where client joint said game
-
 
 	defer func() {
 
@@ -171,7 +167,7 @@ func (wh *webHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		default:
 			{
 
-				params := strings.Split(req.URL.Path, "/", -1)
+				params := strings.Split(req.URL.Path, "/")
 
 				if len(params) == 3 {
 					// eg: GET /game/1234
@@ -189,16 +185,15 @@ func (wh *webHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 type playerWaiting struct {
-	name		string
-	ch		chan message
-	lastSeen	int64
+	name     string
+	ch       chan message
+	lastSeen int64
 }
 
 func (p *playerWaiting) reset() {
 	p.name = ""
 	p.ch = nil
 }
-
 
 func gameController(moveChan chan message, dbChan chan message) {
 	// recieves moves, checks for validity and game conditions and saves
@@ -295,19 +290,19 @@ func gameController(moveChan chan message, dbChan chan message) {
 
 	}
 }
-func dbLookupGame(t *llrb.Tree, gameid int) *game {
+func dbLookupGame(t *llrb.LLRB, gameid int) *game {
 
-	var g game = game{id: gameid}
+	g := &game{id: gameid}
 	result := t.Get(g)
 	if result != nil {
 
-		g = result.(game)
-		return &g
+		g = result.(*game)
+		return g
 	}
 
 	return nil
 }
-func dbGetMaxGame(t *llrb.Tree) int {
+func dbGetMaxGame(t *llrb.LLRB) int {
 
 	max := t.Max()
 
@@ -316,7 +311,7 @@ func dbGetMaxGame(t *llrb.Tree) int {
 		return 0
 	}
 
-	return max.(game).id
+	return max.(*game).id
 }
 func dbController(dbChan chan message) {
 
@@ -329,7 +324,7 @@ func dbController(dbChan chan message) {
 		new_stranger with player info in data, creates g and returns
 
 	*/
-	tree := llrb.New(gameLess)
+	tree := llrb.New()
 	var reply message
 	var stranger playerWaiting
 
@@ -361,8 +356,8 @@ func dbController(dbChan chan message) {
 
 				// log.Println("dbController: putting game")
 				g := m.data.(*game)
-				g.lastActivity = time.Seconds()
-				tree.ReplaceOrInsert(*g)
+				g.lastActivity = time.Now().Unix()
+				tree.ReplaceOrInsert(g)
 			}
 		case "get_max_gamenum":
 			{
@@ -377,7 +372,7 @@ func dbController(dbChan chan message) {
 				// check if stranger has expired
 				// client timeout is 10 seconds
 				// we should have a new request by now
-				if (time.Seconds() - stranger.lastSeen) > 10 {
+				if (time.Now().Unix() - stranger.lastSeen) > 10 {
 
 					log.Println("dbController: timed out. resetting stranger{}")
 					stranger.reset()
@@ -388,7 +383,7 @@ func dbController(dbChan chan message) {
 					// first player or repeat customer
 					stranger.name = m.data.(string)
 					stranger.ch = m.reply_chan
-					stranger.lastSeen = time.Seconds()
+					stranger.lastSeen = time.Now().Unix()
 
 					log.Println("dbController: player waiting: ", stranger.name)
 
@@ -398,15 +393,15 @@ func dbController(dbChan chan message) {
 					first := rand.Int() % 2
 					gameid := dbGetMaxGame(tree) + 1
 					returnData := map[string]string{
-						"gameid":	strconv.Itoa(gameid),
-						"black":	players[first],
-						"white":	players[1-first]}
+						"gameid": strconv.Itoa(gameid),
+						"black":  players[first],
+						"white":  players[1-first]}
 
 					g := newGame()
 					g.id = gameid
 					g.playerBlack = players[first]
 					g.playerWhite = players[1-first]
-					tree.ReplaceOrInsert(*g)
+					tree.ReplaceOrInsert(g)
 
 					log.Println("dbController: joining", players[0], players[1], "in game", gameid)
 
@@ -445,7 +440,7 @@ func webPollStranger(w http.ResponseWriter, req *http.Request, dbChan chan messa
 
 	dbChan <- msg
 
-	timeout := time.Tick(52e9)	// 52s timeout
+	timeout := time.Tick(52e9) // 52s timeout
 
 	select {
 
@@ -514,9 +509,9 @@ func webFriendGame(w http.ResponseWriter, req *http.Request, dbChan chan message
 	w.Header().Set("Content-Type", "text/json")
 
 	b, _ := json.Marshal(map[string]string{
-		"gameid":	strconv.Itoa(g.id),
-		"black":	g.playerBlack,
-		"white":	g.playerWhite})
+		"gameid": strconv.Itoa(g.id),
+		"black":  g.playerBlack,
+		"white":  g.playerWhite})
 
 	if _, err := w.Write(b); err != nil {
 
@@ -575,9 +570,9 @@ func webJoinGame(w http.ResponseWriter, req *http.Request, dbChan chan message) 
 	w.Header().Set("Content-Type", "text/json")
 
 	b, _ := json.Marshal(map[string]string{
-		"gameid":	gameIdString,
-		"black":	g.playerBlack,
-		"white":	g.playerWhite})
+		"gameid": gameIdString,
+		"black":  g.playerBlack,
+		"white":  g.playerWhite})
 
 	if _, err := w.Write(b); err != nil {
 
@@ -600,7 +595,7 @@ func webPostMove(w http.ResponseWriter, req *http.Request, moveChan chan message
 
 	var m move
 
-	params := strings.Split(req.URL.Path, "/", -1)
+	params := strings.Split(req.URL.Path, "/")
 
 	if len(params) < 3 {
 
@@ -611,7 +606,7 @@ func webPostMove(w http.ResponseWriter, req *http.Request, moveChan chan message
 	gameid, err := strconv.Atoi(params[2])
 	if err != nil {
 
-		webErrorHandler("Invalid GameID: "+err.String(), w)
+		webErrorHandler("Invalid GameID: "+err.Error(), w)
 		return
 	}
 	m.Gameid = gameid
@@ -619,7 +614,7 @@ func webPostMove(w http.ResponseWriter, req *http.Request, moveChan chan message
 	formData := req.FormValue("data")
 	if err := json.Unmarshal([]uint8(formData), &m); err != nil {
 
-		webErrorHandler("Can't unmarshal post data: "+err.String(), w)
+		webErrorHandler("Can't unmarshal post data: "+err.Error(), w)
 		return
 	}
 
@@ -655,7 +650,7 @@ func webPushMove(w http.ResponseWriter, req *http.Request, dbChan chan message) 
 	// long polling, JSON reply
 	// typical request: /game/12345/playername
 
-	params := strings.Split(req.URL.Path, "/", -1)
+	params := strings.Split(req.URL.Path, "/")
 
 	if len(params) < 4 {
 
@@ -667,7 +662,7 @@ func webPushMove(w http.ResponseWriter, req *http.Request, dbChan chan message) 
 	gameid, err := strconv.Atoi(params[2])
 	if err != nil || len(playerName) == 0 {
 
-		webErrorHandler("Invalid GameID and/or playerName: "+err.String(), w)
+		webErrorHandler("Invalid GameID and/or playerName: "+err.Error(), w)
 		return
 	}
 
@@ -702,7 +697,7 @@ func webPushMove(w http.ResponseWriter, req *http.Request, dbChan chan message) 
 		}
 	}
 
-	timeout := time.Tick(52e9)	// 52s timeout
+	timeout := time.Tick(52e9) // 52s timeout
 	var m move
 
 	select {
@@ -761,7 +756,7 @@ func main() {
 		fi, err := os.Stat(*logfile)
 		var logflag int
 
-		if err == nil && fi.IsRegular() {
+		if err == nil && fi.Mode().IsRegular() {
 
 			logflag = os.O_APPEND | os.O_WRONLY
 
@@ -773,7 +768,7 @@ func main() {
 		// this should somehow be closed as well
 		// but that involves handling SIGTERM, that
 		// in turn involves handling SIGPIPEs etc
-		f, err := os.Open(*logfile, logflag, 0666)
+		f, err := os.OpenFile(*logfile, logflag, 0666)
 
 		if err != nil {
 
@@ -803,6 +798,6 @@ func main() {
 	log.Println("Application launching on ", *addr)
 
 	if err := http.ListenAndServe(*addr, nil); err != nil {
-		log.Fatal("ListenAndServe: ", err.String())
+		log.Fatal("ListenAndServe: ", err.Error())
 	}
 }
