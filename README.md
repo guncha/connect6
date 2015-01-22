@@ -1,8 +1,7 @@
-To compile with a working Golang environment, run:
+To start the server on the default port (8080):
 ```
-go get github.com/petar/GoLLRB/llrb # if you don't have this already
 go run main.go
 ```
-Server will start on :8080. That's it!
+All files in the current directory will be publically available.
 
 G
