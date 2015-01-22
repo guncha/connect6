@@ -1,1 +1,4 @@
 connect6
+node_modules
+dist
+build
